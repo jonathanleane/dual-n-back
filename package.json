@@ -10,7 +10,11 @@
   "scripts": {
     "dev": "npm -w dual-n-back run dev",
     "build": "npm -w dual-n-back run build",
-    "test": "npm -w dual-n-back run test",
-    "typecheck": "npm -w dual-n-back run typecheck"
+    "test": "npm -w dual-n-back run test && npm -w double-decision run test",
+    "typecheck": "npm -w dual-n-back run typecheck && npm -w double-decision run typecheck",
+    "dd:dev": "npm -w double-decision run dev",
+    "dd:build": "npm -w double-decision run build",
+    "dd:test": "npm -w double-decision run test",
+    "dd:typecheck": "npm -w double-decision run typecheck"
   }
 }
