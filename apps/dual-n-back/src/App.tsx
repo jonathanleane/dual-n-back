@@ -15,7 +15,7 @@ type Screen =
   | { name: 'landing' }
   | { name: 'gameIdle' }
   | { name: 'gamePlaying' }
-  | { name: 'result'; result: BlockResult; blocksLeft: number; level: number }
+  | { name: 'result'; result: BlockResult; blocksLeft: number; level: number; levelChanged: boolean }
   | { name: 'sessionComplete'; session: SessionResult }
   | { name: 'stats' }
   | { name: 'settings' }
@@ -62,34 +62,36 @@ export default function App() {
     setScreen({ name: 'gamePlaying' });
   }, [player.state.settings.nBackLevel]);
 
+  // NB: all side effects (recordSession, setScreen, …) happen here in the event
+  // callback, never inside a state updater — React may invoke updaters more
+  // than once (StrictMode does so on every update), which would double-record.
   const recordBlock = useCallback(
-    (result: BlockResult, newLevel: number) => {
-      setSession((prev) => {
-        if (!prev) return null;
-        const blocks = [...prev.blocks, result];
-        const blocksLeft = player.state.settings.blocksPerSession - blocks.length;
+    (result: BlockResult, newLevel: number, levelChanged: boolean) => {
+      if (!session) return;
+      const blocks = [...session.blocks, result];
+      const blocksLeft = player.state.settings.blocksPerSession - blocks.length;
 
-        if (blocksLeft <= 0) {
-          const finished: SessionResult = {
-            id: createId(),
-            startedAt: prev.startedAt,
-            finishedAt: Date.now(),
-            blocks,
-            startingLevel: prev.startingLevel,
-            endingLevel: newLevel,
-            completed: true,
-          };
-          player.recordSession(finished);
-          setPendingSummary(finished);
-          setScreen({ name: 'result', result, blocksLeft: 0, level: newLevel });
-          return null;
-        }
+      if (blocksLeft <= 0) {
+        const finished: SessionResult = {
+          id: createId(),
+          startedAt: session.startedAt,
+          finishedAt: Date.now(),
+          blocks,
+          startingLevel: session.startingLevel,
+          endingLevel: newLevel,
+          completed: true,
+        };
+        player.recordSession(finished);
+        setPendingSummary(finished);
+        setSession(null);
+        setScreen({ name: 'result', result, blocksLeft: 0, level: newLevel, levelChanged });
+        return;
+      }
 
-        setScreen({ name: 'result', result, blocksLeft, level: newLevel });
-        return { ...prev, blocks };
-      });
+      setSession({ ...session, blocks });
+      setScreen({ name: 'result', result, blocksLeft, level: newLevel, levelChanged });
     },
-    [player],
+    [session, player],
   );
 
   // From ResultScreen's "End session", PlayScreen's "Quit", or the natural end-of-session flow.
@@ -208,6 +210,7 @@ export default function App() {
           result={screen.result}
           blocksLeft={screen.blocksLeft}
           level={screen.level}
+          levelChanged={screen.levelChanged}
           onContinue={continueSession}
           onDone={finishOrSummarize}
         />

@@ -19,7 +19,7 @@ interface Props {
   onHome: () => void;
   onStats: () => void;
   onSettings: () => void;
-  onBlockComplete: (result: BlockResult, newLevel: number) => void;
+  onBlockComplete: (result: BlockResult, newLevel: number, levelChanged: boolean) => void;
   onQuit: () => void;
 }
 
@@ -54,14 +54,24 @@ export default function GameScreen({
     settings: { speedMultiplier: settings.speedMultiplier, nBackLevel: settings.nBackLevel },
   });
 
+  // If the screen leaves play mode mid-block (quit), stop the engine. This
+  // component stays mounted on the idle menu, so without the reset its timers
+  // keep firing invisibly — audio keeps playing and the finished ghost block
+  // would silently change the level.
+  const engineReset = engine.reset;
+  useEffect(() => {
+    if (mode !== 'playing') engineReset();
+  }, [mode, engineReset]);
+
   useEffect(() => {
     if (engine.mode === 'blockDone' && engine.lastResult) {
       const result = engine.lastResult;
       const newLevel = settings.autoLevelProgression
         ? applyOutcome(settings.nBackLevel, result.outcome)
         : settings.nBackLevel;
-      player.updateSettings({ nBackLevel: newLevel });
-      onBlockComplete(result, newLevel);
+      const levelChanged = newLevel !== settings.nBackLevel;
+      if (levelChanged) player.updateSettings({ nBackLevel: newLevel });
+      onBlockComplete(result, newLevel, levelChanged);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine.mode]);

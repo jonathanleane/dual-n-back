@@ -12,6 +12,10 @@ import { localDateKey } from '../engine/dates';
 
 const SAVE_DEBOUNCE_MS = 500;
 
+// One adapter for the whole app. Creating it as a default parameter would
+// mint a new object identity every render and churn the save effect's deps.
+const defaultStorage = createLocalStorageAdapter();
+
 export interface UsePlayerState {
   state: PersistedState;
   updateSettings: (patch: Partial<Settings>) => void;
@@ -20,10 +24,12 @@ export interface UsePlayerState {
   resetAll: () => void;
 }
 
-export function usePlayerState(storage: AppStorage = createLocalStorageAdapter()): UsePlayerState {
+export function usePlayerState(storage: AppStorage = defaultStorage): UsePlayerState {
   const [state, setState] = useState<PersistedState>(
     () => storage.load() ?? createDefaultState(),
   );
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -33,6 +39,14 @@ export function usePlayerState(storage: AppStorage = createLocalStorageAdapter()
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [state, storage]);
+
+  // The debounce above would lose the final write if the tab closes within
+  // 500ms of the last change — flush synchronously when the page is hidden.
+  useEffect(() => {
+    const flush = () => storage.save(stateRef.current);
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
+  }, [storage]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.settings.theme;

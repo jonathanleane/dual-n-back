@@ -7,6 +7,8 @@ interface Props {
   result: BlockResult;
   blocksLeft: number;
   level: number;
+  /** Whether the level actually moved (false when auto progression is off). */
+  levelChanged: boolean;
   onContinue: () => void;
   onDone: () => void;
 }
@@ -45,7 +47,7 @@ function tally(
   return { hits, misses, falseAlarms, correctRejections, totalMatches: hits + misses };
 }
 
-export default function ResultScreen({ result, blocksLeft, level, onContinue, onDone }: Props) {
+export default function ResultScreen({ result, blocksLeft, level, levelChanged, onContinue, onDone }: Props) {
   const headline =
     result.outcome === 'level-up' ? 'Amazing!' : result.outcome === 'level-down' ? 'Push harder.' : 'Nice.';
   const sessionDone = blocksLeft <= 0;
@@ -98,12 +100,16 @@ export default function ResultScreen({ result, blocksLeft, level, onContinue, on
       )}
 
       {(() => {
-        const label =
-          result.outcome === 'level-up'
+        // Only claim a change when the level actually moved — with auto
+        // progression off, the outcome can be level-up/down while the level
+        // stays put.
+        const label = levelChanged
+          ? result.outcome === 'level-up'
             ? `Level raised to ${level}`
-            : result.outcome === 'level-down'
-            ? `Level dropped to ${level}`
-            : `Same level (${level})`;
+            : `Level dropped to ${level}`
+          : result.outcome === 'hold'
+          ? `Same level (${level})`
+          : `Same level (${level}) — auto progression off`;
         const sharedStyle = {
           width: '100%',
           background: 'var(--accent)',

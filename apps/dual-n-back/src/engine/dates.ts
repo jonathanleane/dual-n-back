@@ -15,11 +15,6 @@ export function localDateKey(ms: number): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Today as a local-date YYYY-MM-DD string. */
-export function todayLocalKey(): string {
-  return localDateKey(Date.now());
-}
-
 /**
  * Local midnight (00:00:00.000 in the user's timezone) for an arbitrary date.
  * Useful for "is this in the future" comparisons that should respect local days.

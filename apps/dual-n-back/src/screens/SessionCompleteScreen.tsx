@@ -25,6 +25,10 @@ export default function SessionCompleteScreen({ session, onDone }: Props) {
 
   const durationSec = Math.max(0, Math.round((session.finishedAt - session.startedAt) / 1000));
   const durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
+  // Per-block average uses actual in-block time, not session wall-clock —
+  // wall-clock includes time spent reading the result screens between blocks.
+  const activeBlockSec =
+    session.blocks.reduce((a, b) => a + Math.max(0, b.finishedAt - b.startedAt), 0) / 1000;
 
   const totalTrials = session.blocks.reduce((a, b) => a + b.trials.length, 0);
   const levelDelta = session.endingLevel - session.startingLevel;
@@ -65,7 +69,7 @@ export default function SessionCompleteScreen({ session, onDone }: Props) {
             }
           />
           <Tile big={`${completedBlocks}`} label="Blocks" footer={`${totalTrials} trials`} />
-          <Tile big={durationStr} label="Duration" footer={`avg ${(durationSec / Math.max(1, completedBlocks)).toFixed(0)}s per block`} />
+          <Tile big={durationStr} label="Duration" footer={`avg ${(activeBlockSec / Math.max(1, completedBlocks)).toFixed(0)}s per block`} />
           <Tile
             big={`${Math.round(avgPosAcc * 100)}/${Math.round(avgLetAcc * 100)}`}
             label="Position / Sound"

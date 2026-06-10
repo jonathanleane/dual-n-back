@@ -10,7 +10,7 @@ import type {
   UserResponse,
 } from '../engine/types';
 import { generateBlock, type BlockGenOptions } from '../engine/blockGenerator';
-import { applyOutcome, computeOutcome, scoreBlock } from '../engine/scoring';
+import { computeOutcome, scoreBlock } from '../engine/scoring';
 import type { AudioPlayer } from '../audio/AudioPlayer';
 
 type Mode = 'idle' | 'stimulus' | 'response' | 'paused' | 'blockDone';
@@ -121,6 +121,7 @@ export interface GameEngineOptions {
 export function useGameEngine(opts: GameEngineOptions): UseGameEngine {
   const [state, dispatch] = useReducer(reducer, initial);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const blockStartedAtRef = useRef<number>(0);
   const audio = opts.audio;
   const speed = Math.max(0.5, Math.min(5, opts.settings.speedMultiplier));
   const responseMs = BASE_RESPONSE_WINDOW_MS / speed;
@@ -149,11 +150,10 @@ export function useGameEngine(opts: GameEngineOptions): UseGameEngine {
         const responses = responsesRef.current;
         const { positionAccuracy, letterAccuracy } = scoreBlock(state.n, state.trials, responses);
         const outcome = computeOutcome(positionAccuracy, letterAccuracy, opts.settings.nBackLevel);
-        const now = Date.now();
         const result: BlockResult = {
           n: state.n,
-          startedAt: now - state.trials.length * (STIMULUS_MS + responseMs),
-          finishedAt: now,
+          startedAt: blockStartedAtRef.current,
+          finishedAt: Date.now(),
           trials: state.trials,
           responses,
           positionAccuracy,
@@ -177,6 +177,7 @@ export function useGameEngine(opts: GameEngineOptions): UseGameEngine {
   const startBlock = useCallback(
     (n: number, seed: number = Date.now(), options?: BlockGenOptions) => {
       clearTimers();
+      blockStartedAtRef.current = Date.now();
       const trials = generateBlock(n, seed, options);
       dispatch({ type: 'start', n, trials });
     },
@@ -219,6 +220,3 @@ export function useGameEngine(opts: GameEngineOptions): UseGameEngine {
     [state, startBlock, tapPosition, tapSound, pause, resume, reset],
   );
 }
-
-// Helper export consumers may want
-export { applyOutcome };
